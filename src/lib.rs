@@ -1,10 +1,19 @@
 use std::io::{self, Write};
 
 ///Holds all valid commands or none
+#[derive(Debug)]
 enum Command<'a> {
-    Ls(Vec<&'a str>),
-    Pwd,
-    Cat(Vec<&'a str>),
+    Ls {
+        flags: Vec<&'a str>,
+        args: Vec<&'a str>,
+    },
+    Pwd {
+        flags: Vec<&'a str>
+    },
+    Cat {
+        flags: Vec<&'a str>,
+        args: Vec<&'a str>,
+    },
     Exit,
     None
 }
@@ -40,12 +49,25 @@ pub fn shell_loop() {
 
 /// Parse given input for commands
 fn parse_input(input: &str) -> Command {
-    let mut command_tokens = input.split(' ');
-    if let Some(command) = command_tokens.next() {
+    let mut input = input.split(' ');
+    if let Some(command) = input.next() {
+        let is_flag = |i: &&str| i.starts_with("-");
+        let input_args = input.clone();
+
+        let flags = input.filter(is_flag).collect();
+        let args = input_args.filter(|i| !is_flag(i)).collect();
         match command {
-            "ls" => Command::Ls(command_tokens.collect()),
-            "pwd" => Command::Pwd,
-            "cat" => Command::Cat(command_tokens.collect()),
+            "ls" => Command::Ls {
+                flags,
+                args,
+            },
+            "pwd" => Command::Pwd {
+                flags,
+            },
+            "cat" => Command::Cat {
+                flags,
+                args
+            },
             "exit" => Command::Exit,
             _ => Command::None,
         }
@@ -59,9 +81,9 @@ fn parse_input(input: &str) -> Command {
 /// Execute given command
 fn handle_command(command: Command) {
     match command {
-        Command::Ls(arr) => println!("{:?}", arr),
-        Command::Cat(arr) => println!("{:?}", arr),
-        Command::Pwd => println!("pwd"),
+        Command::Ls{..} => println!("{:?}", command),
+        Command::Cat{..} => println!("{:?}", command),
+        Command::Pwd {..}=> println!("{:?}", command),
         _ => ()
     }
 }

@@ -1,3 +1,7 @@
+mod ls;
+mod pwd;
+mod cat;
+
 use std::io::{self, Write};
 
 ///Holds all valid commands or none
@@ -24,7 +28,6 @@ pub fn load_config() {
 
 ///Main read-parse-execute loop
 pub fn shell_loop() {
-
     loop {
         print!("> ");
         io::stdout().flush().expect("Error outputting text");
@@ -78,12 +81,12 @@ fn parse_input(input: &str) -> Command {
     
 }
 
-/// Execute given command
+/// Hanlde given command
 fn handle_command(command: Command) {
     match command {
-        Command::Ls{..} => println!("{:?}", command),
-        Command::Cat{..} => println!("{:?}", command),
-        Command::Pwd {..}=> println!("{:?}", command),
+        Command::Ls{ flags, args } => ls::execute(flags, args),
+        Command::Cat{ flags, args } => cat::execute(flags, args),
+        Command::Pwd{ flags }=> pwd::execute(flags),
         _ => ()
     }
 }

@@ -81,13 +81,17 @@ fn parse_input(input: &str) -> Command {
     
 }
 
-/// Hanlde given command
+/// Handle given command
 fn handle_command(command: Command) {
-    match command {
+    let output = match command {
         Command::Ls{ flags, args } => ls::execute(flags, args),
         Command::Cat{ flags, args } => cat::execute(flags, args),
         Command::Pwd{ flags }=> pwd::execute(flags),
-        _ => ()
+        _ => Ok((String::from(""), String::from("")))
+    };
+    if let Ok((stdout, stderr)) = output {
+        println!("{}", stderr);
+        println!("{}", stdout);
     }
 }
 

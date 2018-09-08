@@ -1,2 +1,6 @@
+use std::io;
 
-pub fn execute(flags: Vec<&str>) {}
+pub fn execute(flags: Vec<&str>) -> Result<(String, String), io::Error>{
+    let out = String::from("...");
+    Ok((out.clone(), out))
+}

@@ -1,5 +1,7 @@
+use std::path::PathBuf;
+use std::env;
 use std::fs;
-use std::str;
+use unixdata;
 
 const RCFILE: &str = ".rushrc";
 const SEPARATOR1: char = '@';
@@ -65,6 +67,18 @@ impl Config {
     pub fn prompt(&self) -> &str {
         &self.prompt
     }
+    pub fn update_cwd(&mut self) {
+        if !self.cwd { return };
+        generate_prompt(self);
+    }
+    pub fn update_user(&mut self) {
+        if !self.user { return };
+        generate_prompt(self);
+    }
+    pub fn update_host(&mut self) {
+        if !self.host { return };
+        generate_prompt(self);
+    }
 }
 
 fn parse_config_file(config: &str) -> Config {
@@ -129,13 +143,13 @@ fn get_token(config: &str, sep_pattern: &str) -> Option<char> {
 fn generate_prompt(config: &mut Config) -> String {
     let mut prompt = String::new();
     if config.user {
-        prompt = format!("{}{}", prompt, get_user());
+        prompt = format!("{}{}", prompt, unixdata::get_user());
     }
     if config.separator1.enabled {
         prompt.push(config.separator1.value);
     }
     if config.host {
-        prompt = format!("{}{}", prompt, get_host());
+        prompt = format!("{}{}", prompt, unixdata::get_host());
     }
     if config.separator2.enabled {
         prompt.push(config.separator2.value);
@@ -149,6 +163,25 @@ fn generate_prompt(config: &mut Config) -> String {
     prompt
 }
 
-fn get_user() -> String { String::from("asdf") }
-fn get_host() -> String { String::from("host") }
-fn get_cwd() -> String { String::from("cwd") }
+fn get_cwd() -> String {
+    let path = env::current_dir();
+    if let Err(_) = path { return String::from(UNKNOWN) }
+    let path = path.unwrap();
+    match env::home_dir() {
+        None => String::from(path.to_str().unwrap()),
+        Some(home_dir) => {
+            if path.starts_with(home_dir) {
+                let mut path = path.iter();
+                path.next();
+                path.next();
+                let path: PathBuf = path.collect();
+                let path = path.to_str().unwrap();
+                let squiggle = String::from("~/");
+                squiggle + path
+            } else {
+                String::from(path.to_str().unwrap())
+            }
+
+        }
+    }
+}

@@ -1,6 +1,7 @@
 mod commands;
 mod outputhandler;
 mod config;
+mod unixdata;
 
 use std::io::{self, Write};
 use outputhandler::OutputHandler;

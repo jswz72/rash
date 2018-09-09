@@ -1,35 +1,33 @@
 use commands::utils;
 
+use outputhandler::OutputHandler;
 use std::fs;
 use std::io;
-use std::fmt::Write;
 
-pub fn execute(_flags: Vec<&str>, args: Vec<&str>) -> Result<(String, String), io::Error>{
-    let mut stderr = String::new();
-    let mut stdout = String::new();
+pub fn execute<'a>(oh: &'a mut OutputHandler, _flags: Vec<&str>, args: Vec<&str>) -> Result<&'a mut OutputHandler, io::Error>{
     let paths = utils::construct_paths(args)?;
     for path in paths {
         match fs::metadata(path.clone()) {
-            Err(_) => write!(&mut stderr, "\nCannot access {}", path.to_str().unwrap()).unwrap(),
+            Err(_) => oh.add_stderr(format!("Cannot access {}", path.to_str().unwrap())),
             Ok(meta) => {
                 if !meta.is_dir() {
-                    write!(&mut stdout, "\n{} is not a directory", path.to_str().unwrap()).unwrap();
+                    oh.add_stderr(format!("{} is not a directory", path.to_str().unwrap()));
                 } else {
-                    write!(&mut stdout, "\n{}: ", path.to_str().unwrap()).unwrap();
+                    oh.add_stdout(format!("{}: ", path.to_str().unwrap()));
                     let dir_contents = fs::read_dir(path.as_path())?;
                     for name in dir_contents {
                         let name = name?.file_name().into_string();
                         match name {
-                            Err(_) => stderr.push_str("\n Directory contains non-unicode filename"),
-                            Ok(fname) => write!(&mut stdout, "\n{}", fname).unwrap(),
+                            Err(_) => oh.add_stderr_str("Directory contains non-unicode filename"),
+                            Ok(fname) => oh.add_stdout(fname),
                         }
                     }
-                    stdout.push('\n');
+                    oh.add_stdout_str("\n");
                 }
             }
         }
     }
-    Ok((stdout, stderr))
+    Ok(oh)
 }
 
 

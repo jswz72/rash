@@ -1,5 +1,7 @@
 mod commands;
+mod outputhandler;
 
+use outputhandler::OutputHandler;
 use std::io::{self, Write};
 
 ///Holds all valid commands or none
@@ -40,7 +42,9 @@ pub fn shell_loop() {
                 } else if let Command::None = command {
                     continue
                 }
-                handle_command(command);
+                let mut output_handler = OutputHandler::new();
+                handle_command(&mut output_handler, command);
+                output_handler.display();
 
             },
             Err(error) => println!("Error: {}", error),
@@ -72,16 +76,12 @@ fn parse_input(input: &str) -> Command {
 }
 
 /// Handle given command
-fn handle_command(command: Command) {
-    let output = match command {
-        Command::Ls{ flags, args } => commands::ls::execute(flags, args),
-        Command::Cat{ flags, args } => commands::cat::execute(flags, args),
-        Command::Pwd{ flags }=> commands::pwd::execute(flags),
-        _ => Ok((String::from(""), String::from("")))
-    };
-    if let Ok((stdout, stderr)) = output {
-        println!("{}", stderr);
-        println!("{}", stdout);
+fn handle_command<'a>(oh: &'a mut OutputHandler, command: Command) -> Result<&'a mut OutputHandler, io::Error> {
+    match command {
+        Command::Ls{ flags, args } => commands::ls::execute(oh, flags, args),
+        Command::Cat{ flags, args } => commands::cat::execute(oh, flags, args),
+        Command::Pwd{ flags }=> commands::pwd::execute(oh, flags),
+        _ => Ok(oh)
     }
 }
 

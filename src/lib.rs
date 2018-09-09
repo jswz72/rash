@@ -1,6 +1,4 @@
-mod ls;
-mod pwd;
-mod cat;
+mod commands;
 
 use std::io::{self, Write};
 
@@ -76,9 +74,9 @@ fn parse_input(input: &str) -> Command {
 /// Handle given command
 fn handle_command(command: Command) {
     let output = match command {
-        Command::Ls{ flags, args } => ls::execute(flags, args),
-        Command::Cat{ flags, args } => cat::execute(flags, args),
-        Command::Pwd{ flags }=> pwd::execute(flags),
+        Command::Ls{ flags, args } => commands::ls::execute(flags, args),
+        Command::Cat{ flags, args } => commands::cat::execute(flags, args),
+        Command::Pwd{ flags }=> commands::pwd::execute(flags),
         _ => Ok((String::from(""), String::from("")))
     };
     if let Ok((stdout, stderr)) = output {

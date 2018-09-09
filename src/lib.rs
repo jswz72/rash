@@ -60,17 +60,9 @@ fn parse_input(input: &str) -> Command {
         let flags = input.filter(is_flag).collect();
         let args = input_args.filter(|i| !is_flag(i)).collect();
         match command {
-            "ls" => Command::Ls {
-                flags,
-                args,
-            },
-            "pwd" => Command::Pwd {
-                flags,
-            },
-            "cat" => Command::Cat {
-                flags,
-                args
-            },
+            "ls" => Command::Ls { flags, args, },
+            "pwd" => Command::Pwd { flags, },
+            "cat" => Command::Cat { flags, args },
             "exit" => Command::Exit,
             _ => Command::None,
         }

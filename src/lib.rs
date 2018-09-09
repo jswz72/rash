@@ -1,8 +1,11 @@
 mod commands;
 mod outputhandler;
+mod config;
+mod unixdata;
 
-use outputhandler::OutputHandler;
 use std::io::{self, Write};
+use outputhandler::OutputHandler;
+use config::Config;
 
 ///Holds all valid commands or none
 #[derive(Debug)]
@@ -22,14 +25,15 @@ enum Command<'a> {
     None
 }
 
-pub fn load_config() {
-    println!("loading config");
+pub fn initialize() -> Config {
+    Config::new()
 }
 
 ///Main read-parse-execute loop
-pub fn shell_loop() {
+pub fn shell_loop(config: Config) {
+    let mut output_handler = OutputHandler::new();
     loop {
-        print!("> ");
+        print!("{} ", config.prompt());
         io::stdout().flush().expect("Error outputting text");
         let mut input = String::new();
 
@@ -42,10 +46,11 @@ pub fn shell_loop() {
                 } else if let Command::None = command {
                     continue
                 }
-                let mut output_handler = OutputHandler::new();
-                handle_command(&mut output_handler, command);
+                if let Err(err) =  handle_command(&mut output_handler, command) {
+                    output_handler.add_stderr(format!("{}", err));
+                }
                 output_handler.display();
-
+                output_handler.clear();
             },
             Err(error) => println!("Error: {}", error),
         }

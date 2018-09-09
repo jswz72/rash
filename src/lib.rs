@@ -1,8 +1,11 @@
 mod commands;
 mod outputhandler;
+mod config;
 
-use outputhandler::OutputHandler;
 use std::io::{self, Write};
+use std::fs::File;
+use outputhandler::OutputHandler;
+use config::Config;
 
 ///Holds all valid commands or none
 #[derive(Debug)]
@@ -22,10 +25,6 @@ enum Command<'a> {
     None
 }
 
-pub fn load_config() {
-    println!("loading config");
-}
-
 ///Main read-parse-execute loop
 pub fn shell_loop() {
     loop {
@@ -43,7 +42,9 @@ pub fn shell_loop() {
                     continue
                 }
                 let mut output_handler = OutputHandler::new();
-                handle_command(&mut output_handler, command);
+                if let Err(err) =  handle_command(&mut output_handler, command) {
+                    output_handler.add_stderr(format!("{}", err));
+                }
                 output_handler.display();
 
             },

@@ -1,7 +1,6 @@
-extern crate rash;
+extern crate rush;
 
 fn main() {
-    rash::load_config();
-    rash::shell_loop();
-    rash::shutdown();
+    rush::shell_loop();
+    rush::shutdown();
 }

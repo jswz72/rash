@@ -3,7 +3,6 @@ mod outputhandler;
 mod config;
 
 use std::io::{self, Write};
-use std::fs::File;
 use outputhandler::OutputHandler;
 use config::Config;
 
@@ -25,10 +24,15 @@ enum Command<'a> {
     None
 }
 
+pub fn initialize() -> Config {
+    Config::new()
+}
+
 ///Main read-parse-execute loop
-pub fn shell_loop() {
+pub fn shell_loop(config: Config) {
+    let mut output_handler = OutputHandler::new();
     loop {
-        print!("> ");
+        print!("{} ", config.prompt());
         io::stdout().flush().expect("Error outputting text");
         let mut input = String::new();
 
@@ -41,12 +45,11 @@ pub fn shell_loop() {
                 } else if let Command::None = command {
                     continue
                 }
-                let mut output_handler = OutputHandler::new();
                 if let Err(err) =  handle_command(&mut output_handler, command) {
                     output_handler.add_stderr(format!("{}", err));
                 }
                 output_handler.display();
-
+                output_handler.clear();
             },
             Err(error) => println!("Error: {}", error),
         }

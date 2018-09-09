@@ -1,6 +1,7 @@
 extern crate rush;
 
 fn main() {
-    rush::shell_loop();
+    let config = rush::initialize();
+    rush::shell_loop(config);
     rush::shutdown();
 }

@@ -10,9 +10,15 @@ const HOST: &str = "[HOST]";
 const CWD: &str = "[CWD]";
 const FALLBACK: &str = ">";
 
-struct ConfValues = {
+struct ConfValues {
     enabled: bool,
     value: char,
+}
+
+impl ConfValues {
+    fn new(enabled: bool, value: char) -> ConfValues {
+        ConfValues { enabled, value }
+    }
 }
 
 pub struct Config {
@@ -20,97 +26,94 @@ pub struct Config {
     separator1: ConfValues,
     separator2: ConfValues,
     end: ConfValues,
-    user: ConfValues,
-    host: ConfValues,
-    cwd: ConfValues,
+    user: bool,
+    host: bool,
+    cwd: bool,
 }
 
 impl Config {
     pub fn new() -> Config {
         let mut config_file = fs::read_to_string(RCFILE);
-        match config_file {
+        let mut config = match config_file {
             Err(_) => { 
                 Config { 
-                    prompt: { ConfValues {
+                    prompt: String::from(""),
+                    user: true,
+                    separator1: ConfValues {
                         enabled: true,
-                        value: String::from(USER), 
+                        value: SEPARATOR1, 
                     },
-                    separator1: { ConfValues {
+                    host: true,
+                    separator2: ConfValues {
                         enabled: true,
-                        value: SEPARATOR1.to_string(), 
-                    }
-                    host: { ConfValues {
-                        enabled: true,
-                        value: String::from(HOST), 
-                    }
-                    separator2: { ConfValues {
-                        enabled: true,
-                        value: SEPARATOR2.to_string()
+                        value: SEPARATOR2,
                     }, 
-                    prompt: { ConfValues {
+                    cwd: true,
+                    end: ConfValues {
                         enabled: true,
-                        value: String::from(CWD), 
-                    end: { ConfValues {
-                        enabled: true,
-                        value:END.to_string(
-                    }
+                        value:END,
+                    },
                 }
             },
             Ok(ref cf_string) => {
-                let mut config = parse_config_file(&cf_string[..]);
-                config.prompt = generate_prompt(&mut config);
-                config
+                parse_config_file(&cf_string[..])
             }
-        }
+        };
+        config.prompt = generate_prompt(&mut config);
+        config
     }
-    pub fn prompt(&self) -> String {
-        let mut prompt = String::new();
-        for item in self.prompt.iter() {
-            prompt.push_str(item);
-        }
-        prompt
+    pub fn prompt(&self) -> &str {
+        &self.prompt
     }
 }
 
 fn parse_config_file(config: &str) -> Config {
-    let mut prompt = Vec::new();
-    if !config.contains("user=false") {
-        prompt.push(String::from("{user}"));
-    }
+    let user = config.contains("user=false");
     let separator_pattern = "separator1=";
     let sep_false = format!("{}false", separator_pattern);
-    if !config.contains(&sep_false) {
-        let separator = match get_token(config, separator_pattern) {
-            Some(sep) => sep,
-            None => SEPARATOR1
+    let separator1 = {
+        let enabled = config.contains(&sep_false);
+        let value = if enabled {
+            match get_token(config, separator_pattern) {
+                Some(sep) => sep,
+                None => SEPARATOR1
+            }
+        } else { 
+            SEPARATOR1 
         };
-        prompt.push(separator.to_string());
-    }
-    if !config.contains("host=false") {
-        prompt.push(String::from("{host}"));
-    }
+        ConfValues { enabled, value }
+    };
+    let host = config.contains("host=false");
     let separator_pattern = "separator2=";
     let sep_false = format!("{}false", separator_pattern);
-    if !config.contains(&sep_false) {
-        let separator = match get_token(config, separator_pattern) {
-            Some(sep) => sep,
-            None => SEPARATOR2
+    let separator2 = {
+        let enabled = config.contains(&sep_false);
+        let value = if enabled {
+            match get_token(config, separator_pattern) {
+                Some(sep) => sep,
+                None => SEPARATOR2
+            }
+        } else { 
+            SEPARATOR2 
         };
-        prompt.push(separator.to_string());
-    }
-    if !config.contains("cwd=false") {
-        prompt.push(String::from("{cwd}"));
-    }
-    let end_pattern = "end=";
-    let end_false = format!("{}false", end_pattern);
-    if !config.contains(&end_false) {
-        let end = match get_token(config, end_pattern) {
-            Some(token) => token,
-            None => END
+        ConfValues { enabled, value }
+    };
+    let cwd = config.contains("cwd=false");
+    let separator_pattern = "end=";
+    let sep_false = format!("{}false", separator_pattern);
+    let end = {
+        let enabled = config.contains(&sep_false);
+        let value = if enabled {
+            match get_token(config, separator_pattern) {
+                Some(sep) => sep,
+                None => END
+            }
+        } else { 
+            END 
         };
-        prompt.push(end.to_string());
-    }
-    Config { prompt }
+        ConfValues { enabled, value }
+    };
+    Config { prompt: String::from(""), separator1, separator2, end, user, host, cwd }
 }
 
 fn get_token(config: &str, sep_pattern: &str) -> Option<char> {
@@ -123,6 +126,29 @@ fn get_token(config: &str, sep_pattern: &str) -> Option<char> {
     separator_slice.chars().last()
 }
 
-fn generate_prompt(&config: Config) -> String {
-    String::new();
+fn generate_prompt(config: &mut Config) -> String {
+    let mut prompt = String::new();
+    if config.user {
+        prompt = format!("{}{}", prompt, get_user());
+    }
+    if config.separator1.enabled {
+        prompt.push(config.separator1.value);
+    }
+    if config.host {
+        prompt = format!("{}{}", prompt, get_host());
+    }
+    if config.separator2.enabled {
+        prompt.push(config.separator2.value);
+    }
+    if config.cwd {
+        prompt = format!("{}{}", prompt, get_cwd());
+    }
+    if config.end.enabled {
+        prompt.push(config.end.value);
+    }
+    prompt
 }
+
+fn get_user() -> String { String::from("asdf") }
+fn get_host() -> String { String::from("host") }
+fn get_cwd() -> String { String::from("cwd") }

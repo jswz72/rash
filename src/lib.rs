@@ -4,8 +4,10 @@ mod config;
 mod unixdata;
 
 use std::io::{self, Write};
+use std::env;
 use outputhandler::OutputHandler;
 use config::Config;
+use std::process::Command as PCommand;
 
 ///Holds all valid commands or none
 #[derive(Debug)]
@@ -22,7 +24,13 @@ enum Command<'a> {
         args: Vec<&'a str>,
     },
     Exit,
-    None
+    Other {
+        cmd: &'a str,
+        flags: Vec<&'a str>,
+        args: Vec<&'a str>,
+    },
+    None,
+
 }
 
 pub fn initialize() -> Config {
@@ -44,8 +52,12 @@ pub fn shell_loop(config: Config) {
                 if let Command::Exit = command { 
                     break; 
                 } else if let Command::None = command {
-                    continue
-                }
+                    continue;
+                } else if let Command::Other{ cmd, mut flags, mut args } = command {
+                    args.append(&mut flags);
+                    execute_subprocess(cmd, args);
+                    continue;
+                } 
                 if let Err(err) =  handle_command(&mut output_handler, command) {
                     output_handler.add_stderr(format!("{}", err));
                 }
@@ -59,6 +71,7 @@ pub fn shell_loop(config: Config) {
 
 /// Parse given input for commands
 fn parse_input(input: &str) -> Command {
+    if input == "" { return Command::None }
     let mut input = input.split(' ');
     if let Some(command) = input.next() {
         let is_flag = |i: &&str| i.starts_with("-");
@@ -71,7 +84,7 @@ fn parse_input(input: &str) -> Command {
             "pwd" => Command::Pwd { flags, },
             "cat" => Command::Cat { flags, args },
             "exit" => Command::Exit,
-            _ => Command::None,
+            _ => Command::Other { cmd: command, flags, args },
         }
     } else {
         Command::None
@@ -94,3 +107,34 @@ pub fn shutdown() {
     println!("goodbye");
 }
 
+
+/// Execute given command as child process
+fn execute_subprocess(command: &str, args: Vec<&str>) {
+    let cmd_location = match env::var_os("PATH") {
+        Some(paths) => {
+            env::split_paths(&paths).filter_map(|dir| {
+                let full_path = dir.join(command);
+                if full_path.exists() {
+                    Some(full_path)
+                } else {
+                    None
+                }
+            }).next()
+        }
+        None => {
+            println!("PATH is not defined");
+            None
+        }
+    };
+    match cmd_location {
+        None => println!("{} is not defined in path", command),
+        Some(cmd) => {
+            let mut child = PCommand::new(command)
+                .args(args)
+                .spawn()
+                .expect("failed to start command");
+            let errcode = child.wait()
+                .expect("failed to wait for child process");
+        }
+    }
+    }

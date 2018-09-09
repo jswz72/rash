@@ -4,7 +4,7 @@ use std::mem;
 use std::ptr;
 use std::ffi::CStr;
 
-const UNKNOWN: &str = "???";
+pub const UNKNOWN: &str = "???";
 
 pub fn get_user() -> String { 
     unsafe {

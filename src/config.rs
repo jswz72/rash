@@ -165,7 +165,7 @@ fn generate_prompt(config: &mut Config) -> String {
 
 fn get_cwd() -> String {
     let path = env::current_dir();
-    if let Err(_) = path { return String::from(UNKNOWN) }
+    if let Err(_) = path { return String::from(unixdata::UNKNOWN) }
     let path = path.unwrap();
     match env::home_dir() {
         None => String::from(path.to_str().unwrap()),

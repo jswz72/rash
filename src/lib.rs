@@ -5,21 +5,58 @@ mod unixdata;
 
 use std::io::{self, Write};
 use std::env;
-use outputhandler::OutputHandler;
-use config::Config;
 use std::process::{Command as PCommand, Stdio};
 use std::str;
+use outputhandler::OutputHandler;
+use config::Config;
+
+trait Pipeable {
+    fn add_input(&mut self, input: &str) { }
+}
+
+struct BasicCommand<'a> {
+    flags: Vec<&'a str>,
+}
+
+struct FileCommand<'a> {
+    flags: Vec<&'a str>, files: Vec<&'a str>
+}
+
+struct ProgramCommand<'a> {
+    cmd: &'a str, flags: Vec<&'a str>, args: Vec<&'a str>
+}
 
 ///Holds all valid commands or none
-#[derive(Debug)]
 enum Command<'a> {
-    Ls { flags: Vec<&'a str>, files: Vec<&'a str> },
-    Pwd { flags: Vec<&'a str> },
-    Cat { flags: Vec<&'a str>, files: Vec<&'a str> },
+    Ls(FileCommand<'a>),
+    Pwd(BasicCommand<'a>),
+    Cat(FileCommand<'a>),
     Exit,
-    Program { cmd: &'a str, flags: Vec<&'a str>, args: Vec<&'a str> },
+    Program(ProgramCommand<'a>),
     Piped(Vec<Command<'a>>),
     None,
+}
+
+impl<'b> Pipeable for FileCommand<'b> {
+    fn add_input(&mut self, input: &str) {
+        self.files.push(input);
+    }
+}
+
+impl<'a> Pipeable for ProgramCommand<'a> {
+    fn add_input(&mut self, input: &str) {
+        self.args.push(input);
+    }
+}
+
+impl<'a> Command<'a> {
+    fn add_input(&mut self, input: &str) {
+        match self {
+            Command::Ls(FileCommand) | Command::Cat(FileCommand) => FileCommand.add_input(input),
+            Command::Program(ProgramCommand) => ProgramCommand.add_input(input),
+            _ => ()
+        }
+    }
 }
 
 pub fn initialize() -> Config {
@@ -54,11 +91,11 @@ fn build_command(input: &str) -> Command {
         let flags = input.filter(is_flag).collect();
         let other_tokens = input_args.filter(|i| !is_flag(i)).collect();
         match command {
-            "ls" => Command::Ls { flags, files: other_tokens, },
-            "pwd" => Command::Pwd { flags },
-            "cat" => Command::Cat { flags, files: other_tokens, },
+            "ls" => Command::Ls(FileCommand { flags, files: other_tokens, }),
+            "pwd" => Command::Pwd(BasicCommand { flags }),
+            "cat" => Command::Cat(FileCommand { flags, files: other_tokens, }),
             "exit" => Command::Exit,
-            _ => Command::Program { cmd: command, flags, args: other_tokens },
+            _ => Command::Program( ProgramCommand { cmd: command, flags, args: other_tokens }),
         }
     } else {
         Command::None
@@ -81,9 +118,9 @@ fn parse_input(input: &str) -> Command {
 /// Handle given command
 fn handle_command<'a>(oh: &'a mut OutputHandler, command: Command) -> Result<&'a mut OutputHandler, io::Error> {
     match command {
-        Command::Ls{ flags, files } => commands::ls::execute(oh, flags, files),
-        Command::Cat{ flags, files } => commands::cat::execute(oh, flags, files),
-        Command::Pwd{ flags }=> commands::pwd::execute(oh, flags),
+        Command::Ls(FileCommand { flags, files }) => commands::ls::execute(oh, flags, files),
+        Command::Cat(FileCommand { flags, files }) => commands::cat::execute(oh, flags, files),
+        Command::Pwd(BasicCommand { flags })=> commands::pwd::execute(oh, flags),
         _ => Ok(oh)
     }
 }
@@ -124,23 +161,37 @@ fn execute_program(command: &str, args: Vec<&str>) {
     }
 }
 
-fn execute_pipe(commands: Vec<Command>) {
-    if let Command::Program {ref cmd, ref args, ref flags} = commands[0] {
-        if let Command::Program {cmd: cmd2, flags: ref flags2, args: ref args2} = commands[1] {
-            let output = PCommand::new(cmd)
+fn execute_pipe(mut commands: Vec<Command>) {
+    if commands.is_empty() { return };
+    let commands = commands.iter();
+
+    let mut output = vec![];
+    let mut commands = commands.peekable();
+    while let Some(mut command) = commands.next() {
+        if let Command::Program(ProgramCommand {cmd, ref mut args, ref mut flags }) = command {
+            args.append(&mut flags);
+            let child = PCommand::new(cmd)
                 .args(args)
-                .output()
-                .expect("failed to execute first piped process");
-            let mut child = PCommand::new(cmd2)
-                .args(args2)
                 .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
                 .spawn()
-                .expect("failed to execute second piped process");
+                .expect("failed to execute piped process");
             {
                 let mut stdin = child.stdin.as_mut().expect("failed to open stdin");
-                stdin.write_all(&output.stdout);
+                stdin.write_all(&output);
             }
-            child.wait();
+            let out = child.wait_with_output()
+                .expect("failed to wait for piped process");
+            output = out.stdout
+        } else {
+            let mut output_handler = OutputHandler::new();
+            command.add_input(str::from_utf8(&output).unwrap());
+            handle_command(&mut output_handler, *command);
+            if commands.peek().is_some() {
+                output_handler.display()
+            } else {
+                output = output_handler.stdout().as_bytes().to_vec();
+            }
         }
     }
 }
@@ -148,7 +199,7 @@ fn execute_pipe(commands: Vec<Command>) {
 fn execute_command(command: Command, oh: &mut OutputHandler) {
     match command {
         Command::None => (),
-        Command::Program{ cmd, mut flags, mut args } => {
+        Command::Program(ProgramCommand{ cmd, mut flags, mut args }) => {
             args.append(&mut flags);
             execute_program(cmd, args);
         },

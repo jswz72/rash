@@ -6,7 +6,7 @@ use std::io;
 use commands::FileCommand;
 
 pub fn execute<'a>(oh: &'a mut OutputHandler, command: &FileCommand) -> Result<&'a mut OutputHandler, io::Error>{
-    let FileCommand { flags, files } = command;
+    let files = &command.files;
     let paths = utils::construct_paths(files.to_vec())?;
     for path in paths {
         match fs::metadata(path.clone()) {

@@ -3,7 +3,8 @@ mod outputhandler;
 mod config;
 mod unixdata;
 
-use std::io::{self, Write};
+use std::io::{self, Write, ErrorKind};
+use std::error::Error;
 use std::env;
 use std::process::{Command as PCommand, Stdio};
 use std::str;
@@ -78,7 +79,7 @@ fn execute_program(command: &str, args: Vec<&str>) {
     };
     match cmd_location {
         None => println!("{} is not defined in path", command),
-        Some(cmd) => {
+        Some(_) => {
             let mut child = PCommand::new(command)
                 .args(args)
                 .spawn()
@@ -89,8 +90,8 @@ fn execute_program(command: &str, args: Vec<&str>) {
     }
 }
 
-fn execute_pipe(mut commands: Vec<Command>) {
-    if commands.is_empty() { return };
+fn execute_pipe(commands: Vec<Command>) -> Result<(), io::Error> {
+    if commands.is_empty() { return Ok(())};
     let mut output = vec![];
     let mut stderr = vec![];
     for command in commands {
@@ -101,14 +102,12 @@ fn execute_pipe(mut commands: Vec<Command>) {
                 .args(args)
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
-                .spawn()
-                .expect("failed to execute piped process");
-            {
-                let mut stdin = child.stdin.as_mut().expect("failed to open stdin");
-                stdin.write_all(&output);
-            }
-            let out = child.wait_with_output()
-                .expect("failed to wait for piped process");
+                .spawn()?;
+            match child.stdin.as_mut() {
+                None => return Err(io::Error::new(ErrorKind::Other, "Failed to open stdin")),
+                Some(stdin) => stdin.write_all(&output)?,
+            };
+            let out = child.wait_with_output()?;
             output = out.stdout;
             stderr = out.stderr;
         } else {
@@ -119,7 +118,7 @@ fn execute_pipe(mut commands: Vec<Command>) {
                         let add_in = str::from_utf8(&output).unwrap().trim();
                         files.push(add_in);
                         let cmd = Command::Ls(FileCommand { files, flags });
-                        cmd.execute(&mut oh);
+                        cmd.execute(&mut oh)?;
                 },
                 _ => ()
             }
@@ -130,6 +129,7 @@ fn execute_pipe(mut commands: Vec<Command>) {
     }
     println!("{}", str::from_utf8(&stderr).unwrap());
     println!("{}", str::from_utf8(&output).unwrap());
+    Ok(())
 }
 
 fn execute_command(command: Command, oh: &mut OutputHandler) {
@@ -139,7 +139,11 @@ fn execute_command(command: Command, oh: &mut OutputHandler) {
             args.append(&mut flags);
             execute_program(cmd, args);
         },
-        Command::Piped(pipe_sections) => execute_pipe(pipe_sections),
+        Command::Piped(pipe_sections) => {
+            if let Err(err) = execute_pipe(pipe_sections) {
+                oh.add_stderr_str(err.description());
+            }
+        },
         _ => {
             if let Err(err) =  command.execute(oh) {
             oh.add_stderr(format!("{}", err));

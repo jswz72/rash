@@ -7,20 +7,10 @@ const RCFILE: &str = ".rushrc";
 const SEPARATOR1: char = '@';
 const SEPARATOR2: char = '>';
 const END: char = '!';
-const USER: &str = "[user]";
-const HOST: &str = "[HOST]";
-const CWD: &str = "[CWD]";
-const FALLBACK: &str = ">";
 
 struct ConfValues {
     enabled: bool,
     value: char,
-}
-
-impl ConfValues {
-    fn new(enabled: bool, value: char) -> ConfValues {
-        ConfValues { enabled, value }
-    }
 }
 
 pub struct Config {

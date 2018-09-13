@@ -10,13 +10,13 @@ impl OutputHandler {
     pub fn stdout(&self) -> String { self.stdout.clone() }
     pub fn stderr(&self) -> String { self.stderr.clone() }
     pub fn add_stdout(&mut self, output: String) {
-        self.stdout = format!("{}\n{}", self.stdout, output);
+        self.add_stdout_str(&output);
+    }
+    pub fn add_stderr(&mut self, output: String) {
+        self.add_stderr_str(&output);
     }
     pub fn add_stdout_str(&mut self, output: &str) {
         self.stdout = format!("{}\n{}", self.stdout, output);
-    }
-    pub fn add_stderr(&mut self, output: String) {
-        self.stderr = format!("{}\n{}", self.stderr, output);
     }
     pub fn add_stderr_str(&mut self, output: &str) {
         self.stderr = format!("{}\n{}", self.stderr, output);

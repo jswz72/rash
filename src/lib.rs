@@ -18,21 +18,11 @@ struct FileCommand<'a> {
     flags: Vec<&'a str>, files: Vec<&'a str>
 }
 
-impl<'a> FileCommand<'a> {
-    fn add_input(&mut self, input: &'a str) {
-        self.files.push(input);
-    }
-}
-
 struct ProgramCommand<'a> {
     cmd: &'a str, flags: Vec<&'a str>, args: Vec<&'a str>
 }
 
-impl<'a> ProgramCommand<'a> {
-    fn add_input(&mut self, input: &'a str) {
-        self.args.push(input);
-    }
-}
+
 
 ///Holds all valid commands or none
 enum Command<'a> {
@@ -43,16 +33,6 @@ enum Command<'a> {
     Program(ProgramCommand<'a>),
     Piped(Vec<Command<'a>>),
     None,
-}
-
-impl<'a> Command<'a> {
-    fn add_input(&mut self, input: &'a str) {
-        match self {
-            Command::Cat(ref mut data) | Command::Ls(ref mut data) => data.add_input(input),
-            Command::Program(ref mut data) => data.add_input(input),
-            _ => ()
-        }
-    }
 }
 
 pub fn initialize() -> Config {

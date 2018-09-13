@@ -9,29 +9,9 @@ use std::process::{Command as PCommand, Stdio};
 use std::str;
 use outputhandler::OutputHandler;
 use config::Config;
+use commands::{*};
 
-struct BasicCommand<'a> {
-    flags: Vec<&'a str>,
-}
 
-struct FileCommand<'a> {
-    flags: Vec<&'a str>, files: Vec<&'a str>
-}
-
-struct ProgramCommand<'a> {
-    cmd: &'a str, flags: Vec<&'a str>, args: Vec<&'a str>
-}
-
-///Holds all valid commands or none
-enum Command<'a> {
-    Ls(FileCommand<'a>),
-    Pwd(BasicCommand<'a>),
-    Cat(FileCommand<'a>),
-    Exit,
-    Program(ProgramCommand<'a>),
-    Piped(Vec<Command<'a>>),
-    None,
-}
 
 pub fn initialize() -> Config {
     Config::new()
@@ -56,48 +36,22 @@ pub fn shell_loop(config: Config) {
         }
     }
 }
-fn build_command(input: &str) -> Command {
-    let mut input = input.split(' ');
-    if let Some(command) = input.next() {
-        let is_flag = |i: &&str| i.starts_with("-");
-        let input_args = input.clone();
-
-        let flags = input.filter(is_flag).collect();
-        let other_tokens = input_args.filter(|i| !is_flag(i)).collect();
-        match command {
-            "ls" => Command::Ls(FileCommand { flags, files: other_tokens, }),
-            "pwd" => Command::Pwd(BasicCommand { flags }),
-            "cat" => Command::Cat(FileCommand { flags, files: other_tokens, }),
-            "exit" => Command::Exit,
-            _ => Command::Program( ProgramCommand { cmd: command, flags, args: other_tokens }),
-        }
-    } else {
-        Command::None
-    }
-}
 
 /// Parse given input for commands
 fn parse_input(input: &str) -> Command {
-    if input.is_empty() { return Command::None }
+    if input.is_empty() { return Command::Empty }
     if input.contains("|") {
         let pipe_sections = input.split("|");
-        let cmds: Vec<Command> = pipe_sections.map(|sect| build_command(sect.trim())).collect();
+        let cmds: Vec<Command> = pipe_sections.map(|sect| Command::new(sect.trim())).collect();
         Command::Piped(cmds)
     } else {
-        build_command(input)
+        Command::new(input)
     }
     
 }
 
 /// Handle given command
-fn handle_command<'a>(oh: &'a mut OutputHandler, command: Command) -> Result<&'a mut OutputHandler, io::Error> {
-    match command {
-        Command::Ls(FileCommand { flags, files }) => commands::ls::execute(oh, flags, files),
-        Command::Cat(FileCommand { flags, files }) => commands::cat::execute(oh, flags, files),
-        Command::Pwd(BasicCommand { flags })=> commands::pwd::execute(oh, flags),
-        _ => Ok(oh)
-    }
-}
+    
 
 pub fn shutdown() {
     println!("goodbye");
@@ -165,7 +119,7 @@ fn execute_pipe(mut commands: Vec<Command>) {
                         let add_in = str::from_utf8(&output).unwrap().trim();
                         files.push(add_in);
                         let cmd = Command::Ls(FileCommand { files, flags });
-                        handle_command(&mut oh, cmd);
+                        cmd.execute(&mut oh);
                 },
                 _ => ()
             }
@@ -180,14 +134,14 @@ fn execute_pipe(mut commands: Vec<Command>) {
 
 fn execute_command(command: Command, oh: &mut OutputHandler) {
     match command {
-        Command::None => (),
+        Command::Empty => (),
         Command::Program(ProgramCommand{ cmd, mut flags, mut args }) => {
             args.append(&mut flags);
             execute_program(cmd, args);
         },
         Command::Piped(pipe_sections) => execute_pipe(pipe_sections),
         _ => {
-            if let Err(err) =  handle_command(oh, command) {
+            if let Err(err) =  command.execute(oh) {
             oh.add_stderr(format!("{}", err));
             }
             oh.display();

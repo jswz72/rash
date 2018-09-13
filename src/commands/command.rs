@@ -1,28 +1,17 @@
-mod utils;
-pub mod ls;
-pub mod pwd;
-pub mod cat;
-
-use std::io;
-use outputhandler::OutputHandler;
-
 pub struct BasicCommand<'a> {
-    pub flags: Vec<&'a str>,
+    flags: Vec<&'a str>,
 }
 
 pub struct FileCommand<'a> {
-    pub flags: Vec<&'a str>,
-    pub files: Vec<&'a str>
+    flags: Vec<&'a str>, files: Vec<&'a str>
 }
 
 pub struct ProgramCommand<'a> {
-    pub cmd: &'a str, 
-    pub flags: Vec<&'a str>, 
-    pub args: Vec<&'a str>
+    cmd: &'a str, flags: Vec<&'a str>, args: Vec<&'a str>
 }
 
 ///Holds all valid commands or none
-pub enum Command<'a> {
+enum Command<'a> {
     Ls(FileCommand<'a>),
     Pwd(BasicCommand<'a>),
     Cat(FileCommand<'a>),
@@ -33,7 +22,7 @@ pub enum Command<'a> {
 }
 
 impl<'a> Command<'a> {
-    pub fn new(input: &'a str) -> Command {
+    fn new(input: &'a str) -> Command {
         let mut input = input.split(' ');
         if let Some(command) = input.next() {
             let is_flag = |i: &&str| i.starts_with("-");
@@ -52,11 +41,11 @@ impl<'a> Command<'a> {
             Command::Empty
         }
     }
-    pub fn execute<'b>(&self, oh: &'b mut OutputHandler) -> Result<&'b mut OutputHandler, io::Error> {
+    fn execute<'b>(&self, oh: &'a mut OutputHandler) -> Result<&'b mut OutputHandler, io::Error> {
         match self {
-            Command::Ls(file_cmd) => ls::execute(oh, file_cmd),
-            Command::Cat(file_cmd) => cat::execute(oh, file_cmd),
-            Command::Pwd(basic_cmd) => pwd::execute(oh, basic_cmd),
+            Command::Ls(file_cmd) => commands::ls::execute(oh, file_cmd),
+            Command::Cat(file_cmd) => commands::cat::execute(oh, file_cmd),
+            Command::Pwd(basic_cmd) => commands::pwd::execute(oh, basic_cmd),
             _ => Ok(oh)
         }
     }

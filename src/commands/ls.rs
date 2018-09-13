@@ -3,9 +3,11 @@ use commands::utils;
 use outputhandler::OutputHandler;
 use std::fs;
 use std::io;
+use commands::FileCommand;
 
-pub fn execute<'a>(oh: &'a mut OutputHandler, _flags: Vec<&str>, files: Vec<&str>) -> Result<&'a mut OutputHandler, io::Error>{
-    let paths = utils::construct_paths(files)?;
+pub fn execute<'a>(oh: &'a mut OutputHandler, command: &FileCommand) -> Result<&'a mut OutputHandler, io::Error>{
+    let FileCommand { flags, files } = command;
+    let paths = utils::construct_paths(files.to_vec())?;
     for path in paths {
         match fs::metadata(path.clone()) {
             Err(_) => oh.add_stderr(format!("Cannot access {}", path.to_str().unwrap())),

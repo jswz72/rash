@@ -29,7 +29,8 @@ pub fn shell_loop(config: Config) {
         match io::stdin().read_line(&mut input) {
             Ok(_) => {
                 let mut input = input.trim();
-                let command = parse_input(input);
+                let command: Command;
+                command = parse_input(input);
                 if let Command::Exit = command { return }
                 execute_command(command, &mut output_handler);
             },
@@ -39,7 +40,7 @@ pub fn shell_loop(config: Config) {
 }
 
 /// Parse given input for commands
-fn parse_input(input: &str) -> Command {
+fn parse_input<'a>(input: &'a str) -> Command<'a> {
     if input.is_empty() { return Command::Empty }
     if input.contains("|") {
         let pipe_sections = input.split("|");
@@ -141,12 +142,12 @@ fn execute_command(command: Command, oh: &mut OutputHandler) {
         },
         Command::Piped(pipe_sections) => {
             if let Err(err) = execute_pipe(pipe_sections) {
-                oh.add_stderr_str(err.description());
+                oh.add_stderr(err.description());
             }
         },
         _ => {
             if let Err(err) =  command.execute(oh) {
-            oh.add_stderr(format!("{}", err));
+            oh.add_stderr(&format!("{}", err));
             }
             oh.display();
             oh.clear();

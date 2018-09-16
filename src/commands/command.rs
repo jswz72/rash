@@ -1,17 +1,32 @@
+use outputhandler::OutputHandler;
+use commands;
+use std::io;
+
+enum Output<'a> {
+    Standard,
+    File(&'a str)
+}
+
 pub struct BasicCommand<'a> {
-    flags: Vec<&'a str>,
+    pub flags: Vec<&'a str>,
+    output: (Output<'a>, Output<'a>)
 }
 
 pub struct FileCommand<'a> {
-    flags: Vec<&'a str>, files: Vec<&'a str>
+    pub flags: Vec<&'a str>,
+    pub files: Vec<&'a str>, 
+    output: (Output<'a>, Output<'a>)
 }
 
 pub struct ProgramCommand<'a> {
-    cmd: &'a str, flags: Vec<&'a str>, args: Vec<&'a str>
+    pub cmd: &'a str,
+    pub flags: Vec<&'a str>,
+    pub args: Vec<&'a str>,
+    output: (Output<'a>, Output<'a>)
 }
 
 ///Holds all valid commands or none
-enum Command<'a> {
+pub enum Command<'a> {
     Ls(FileCommand<'a>),
     Pwd(BasicCommand<'a>),
     Cat(FileCommand<'a>),
@@ -22,7 +37,8 @@ enum Command<'a> {
 }
 
 impl<'a> Command<'a> {
-    fn new(input: &'a str) -> Command {
+    pub fn new(input: &'a str) -> Command {
+        let output = get_output_type(input);
         let mut input = input.split(' ');
         if let Some(command) = input.next() {
             let is_flag = |i: &&str| i.starts_with("-");
@@ -31,17 +47,17 @@ impl<'a> Command<'a> {
             let flags = input.filter(is_flag).collect();
             let other_tokens = input_args.filter(|i| !is_flag(i)).collect();
             match command {
-                "ls" => Command::Ls(FileCommand { flags, files: other_tokens, }),
-                "pwd" => Command::Pwd(BasicCommand { flags }),
-                "cat" => Command::Cat(FileCommand { flags, files: other_tokens, }),
+                "ls" => Command::Ls(FileCommand { flags, files: other_tokens, output }),
+                "pwd" => Command::Pwd(BasicCommand { flags, output }),
+                "cat" => Command::Cat(FileCommand { flags, files: other_tokens, output }),
                 "exit" => Command::Exit,
-                _ => Command::Program( ProgramCommand { cmd: command, flags, args: other_tokens }),
+                _ => Command::Program( ProgramCommand { cmd: command, flags, args: other_tokens, output }),
             }
         } else {
             Command::Empty
         }
     }
-    fn execute<'b>(&self, oh: &'a mut OutputHandler) -> Result<&'b mut OutputHandler, io::Error> {
+    pub fn execute<'b>(&self, oh: &'a mut OutputHandler) -> Result<&'b mut OutputHandler, io::Error> {
         match self {
             Command::Ls(file_cmd) => commands::ls::execute(oh, file_cmd),
             Command::Cat(file_cmd) => commands::cat::execute(oh, file_cmd),
@@ -49,5 +65,19 @@ impl<'a> Command<'a> {
             _ => Ok(oh)
         }
     }
+}
 
+fn get_output_type(input: &str) -> (Output, Output) {
+    let out = Output::Standard;
+    let err_out = Output::Standard;
+    let input = String::new();
+    let redirect_idx = -1;
+    let err_redirect_idx = -1;
+    for (i, c) in input.chars().enumerate() {
+        if c == '>' {
+            println!("yea!")
+        }
+
+    }
+    (Output::Standard, Output::Standard)
 }

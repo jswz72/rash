@@ -97,7 +97,7 @@ fn execute_pipe(commands: Vec<Command>) -> Result<(), io::Error> {
     let mut stderr = vec![];
     for command in commands {
         if let Command::Program(mut program_command) = command {
-            let  ProgramCommand { cmd, mut args, mut flags } = program_command;
+            let  ProgramCommand { cmd, mut args, mut flags, ..} = program_command;
             args.append(&mut flags);
             let mut child = PCommand::new(cmd)
                 .args(args)
@@ -115,10 +115,10 @@ fn execute_pipe(commands: Vec<Command>) -> Result<(), io::Error> {
             let mut oh = OutputHandler::new();
             match command {
                 Command::Ls(file_cmd) => {
-                        let FileCommand { mut files, flags } = file_cmd;
+                        let FileCommand { mut files, flags, .. } = file_cmd;
                         let add_in = str::from_utf8(&output).unwrap().trim();
                         files.push(add_in);
-                        let cmd = Command::Ls(FileCommand { files, flags });
+                        let cmd = Command::Ls(FileCommand { files, flags, output: (commands::Output::Standard, commands::Output::Standard) });
                         cmd.execute(&mut oh)?;
                 },
                 _ => ()
@@ -136,7 +136,7 @@ fn execute_pipe(commands: Vec<Command>) -> Result<(), io::Error> {
 fn execute_command(command: Command, oh: &mut OutputHandler) {
     match command {
         Command::Empty => (),
-        Command::Program(ProgramCommand{ cmd, mut flags, mut args }) => {
+        Command::Program(ProgramCommand{ cmd, mut flags, mut args, .. }) => {
             args.append(&mut flags);
             execute_program(cmd, args);
         },

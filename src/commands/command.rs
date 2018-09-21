@@ -2,27 +2,27 @@ use outputhandler::OutputHandler;
 use commands;
 use std::io;
 
-enum Output<'a> {
+pub enum Output<'a> {
     Standard,
     File(&'a str)
 }
 
 pub struct BasicCommand<'a> {
     pub flags: Vec<&'a str>,
-    output: (Output<'a>, Output<'a>)
+    pub output: (Output<'a>, Output<'a>)
 }
 
 pub struct FileCommand<'a> {
     pub flags: Vec<&'a str>,
     pub files: Vec<&'a str>, 
-    output: (Output<'a>, Output<'a>)
+    pub output: (Output<'a>, Output<'a>)
 }
 
 pub struct ProgramCommand<'a> {
     pub cmd: &'a str,
     pub flags: Vec<&'a str>,
     pub args: Vec<&'a str>,
-    output: (Output<'a>, Output<'a>)
+    pub output: (Output<'a>, Output<'a>)
 }
 
 ///Holds all valid commands or none
@@ -57,7 +57,7 @@ impl<'a> Command<'a> {
             Command::Empty
         }
     }
-    pub fn execute<'b>(&self, oh: &'a mut OutputHandler) -> Result<&'b mut OutputHandler, io::Error> {
+    pub fn execute<'b>(&self, oh: &'b mut OutputHandler) -> Result<&'b mut OutputHandler, io::Error> {
         match self {
             Command::Ls(file_cmd) => commands::ls::execute(oh, file_cmd),
             Command::Cat(file_cmd) => commands::cat::execute(oh, file_cmd),
@@ -70,14 +70,26 @@ impl<'a> Command<'a> {
 fn get_output_type(input: &str) -> (Output, Output) {
     let out = Output::Standard;
     let err_out = Output::Standard;
-    let input = String::new();
-    let redirect_idx = -1;
-    let err_redirect_idx = -1;
-    for (i, c) in input.chars().enumerate() {
-        if c == '>' {
-            println!("yea!")
+    let mut input = input.split(' ');
+    let takefile = false;
+    for i in input {
+        if takefile {
+            let file = i;
+            return (Output::File(i), Output::Standard);
         }
+        if let Some(redirect_idx) = i.find(|x: char| x == '>') {
+            if i.len() == 1 {
+                takefile = true;
+            } else {
 
+            }
+        }
     }
+    /*let redirect = input.find(|&x| x.contains('>'));
+    if let Some(rd) = redirect {
+        if rd.len() == 1 {
+
+        }
+    }*/
     (Output::Standard, Output::Standard)
 }

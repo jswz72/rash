@@ -2,15 +2,24 @@ use std::path::PathBuf;
 use std::env;
 use std::fs;
 use unixdata;
+use std::collections::HashMap;
 
+/// Default separators
 const RCFILE: &str = ".rushrc";
 const SEPARATOR1: char = '@';
 const SEPARATOR2: char = '>';
 const END: char = '!';
 
+/// Struct for internal properties of config values
 struct ConfValues {
     enabled: bool,
     value: char,
+}
+
+impl ConfValues {
+    pub fn new() -> ConfValues {
+        ConfValues { enabled: true, value: ' ' }
+    }
 }
 
 pub struct Config {
@@ -23,36 +32,39 @@ pub struct Config {
     cwd: bool,
 }
 
+
+
 impl Config {
+    /// Read configuration from .rc file and populate config object
     pub fn new() -> Config {
-        let mut config_file = fs::read_to_string(RCFILE);
+        let config_file = fs::read_to_string(RCFILE);
         let mut config = match config_file {
-            Err(_) => { 
-                Config { 
-                    prompt: String::from(""),
-                    user: true,
-                    separator1: ConfValues {
-                        enabled: true,
-                        value: SEPARATOR1, 
-                    },
-                    host: true,
-                    separator2: ConfValues {
-                        enabled: true,
-                        value: SEPARATOR2,
-                    }, 
-                    cwd: true,
-                    end: ConfValues {
-                        enabled: true,
-                        value:END,
-                    },
-                }
-            },
-            Ok(ref cf_string) => {
-                parse_config_file(&cf_string[..])
-            }
+            Err(_) => { Self::default() },
+            Ok(ref cf_string) => { parse_config_file(&cf_string[..]) }
         };
         config.prompt = generate_prompt(&mut config);
         config
+    }
+    /// Return default config without reading .rc file
+    fn default() -> Config {
+        Config { 
+            prompt: String::from(""),
+            user: true,
+            separator1: ConfValues {
+                enabled: true,
+                value: SEPARATOR1, 
+            },
+            host: true,
+            separator2: ConfValues {
+                enabled: true,
+                value: SEPARATOR2,
+            }, 
+            cwd: true,
+            end: ConfValues {
+                enabled: true,
+                value:END,
+            },
+        }
     }
     pub fn prompt(&self) -> &str {
         &self.prompt
@@ -71,63 +83,44 @@ impl Config {
     }
 }
 
+/// Parse config file for expected values. Return populated config object
 fn parse_config_file(config: &str) -> Config {
-    let user = config.contains("user=false");
-    let separator_pattern = "separator1=";
-    let sep_false = format!("{}false", separator_pattern);
-    let separator1 = {
-        let enabled = config.contains(&sep_false);
-        let value = if enabled {
-            match get_token(config, separator_pattern) {
-                Some(sep) => sep,
-                None => SEPARATOR1
-            }
-        } else { 
-            SEPARATOR1 
-        };
-        ConfValues { enabled, value }
-    };
-    let host = config.contains("host=false");
-    let separator_pattern = "separator2=";
-    let sep_false = format!("{}false", separator_pattern);
-    let separator2 = {
-        let enabled = config.contains(&sep_false);
-        let value = if enabled {
-            match get_token(config, separator_pattern) {
-                Some(sep) => sep,
-                None => SEPARATOR2
-            }
-        } else { 
-            SEPARATOR2 
-        };
-        ConfValues { enabled, value }
-    };
-    let cwd = config.contains("cwd=false");
-    let separator_pattern = "end=";
-    let sep_false = format!("{}false", separator_pattern);
-    let end = {
-        let enabled = config.contains(&sep_false);
-        let value = if enabled {
-            match get_token(config, separator_pattern) {
-                Some(sep) => sep,
-                None => END
-            }
-        } else { 
-            END 
-        };
-        ConfValues { enabled, value }
-    };
-    Config { prompt: String::from(""), separator1, separator2, end, user, host, cwd }
+    let user = !config.contains("user=false");
+    let host = !config.contains("host=false");
+    let cwd = !config.contains("cwd=false");
+    Config { 
+        prompt: String::from(""),
+        separator1: get_separator(config, "separator1"), 
+        separator2: get_separator(config, "separator2"), 
+        end: get_separator(config, "end"), 
+        user, 
+        host, 
+        cwd 
+    }
 }
 
-fn get_token(config: &str, sep_pattern: &str) -> Option<char> {
-    if !config.contains(sep_pattern) { return None }
-    let index = config.find(sep_pattern);
-    if let None = index { return None }
-    let index = index.unwrap();
-    let length = sep_pattern.len();
-    let separator_slice = &config[index..index + length];
-    separator_slice.chars().last()
+fn get_separator(config: &str, sep_pattern: &str) -> ConfValues {
+    let (enabled, value) = get_token(config, &format!("{}=", sep_pattern));
+    match value {
+        Some(value) => ConfValues { enabled, value },
+        None => ConfValues { enabled, value: SEPARATOR1 },
+    }
+}
+            
+/// Get configured token for giver separator pattern. 
+/// Returns enabled status and, if enabled, the token
+fn get_token(config: &str, sep_pattern: &str) -> (bool, Option<char>) {
+    let sep_false = format!("{}false", sep_pattern);
+    let enabled = !config.contains(&sep_false);
+    if  !enabled { return (enabled, None) };
+    match config.find(sep_pattern) {
+        Some(index) => {
+            let length = sep_pattern.len();
+            let separator_slice = &config[index..index + length];
+            (enabled, separator_slice.chars().last())
+        },
+        None => (enabled, None),
+    }
 }
 
 fn generate_prompt(config: &mut Config) -> String {

@@ -12,8 +12,7 @@ use outputhandler::OutputHandler;
 use config::Config;
 use commands::{*};
 
-
-
+/// Initialize shell, return new configuraiton object
 pub fn initialize() -> Config {
     Config::new()
 }

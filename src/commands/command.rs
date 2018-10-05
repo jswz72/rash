@@ -71,7 +71,7 @@ fn get_output_type(input: &str) -> (Output, Output) {
     let out = Output::Standard;
     let err_out = Output::Standard;
     let mut input = input.split(' ');
-    let takefile = false;
+    let mut takefile = false;
     for i in input {
         if takefile {
             let file = i;

@@ -2,7 +2,6 @@ use std::path::PathBuf;
 use std::env;
 use std::fs;
 use unixdata;
-use std::collections::HashMap;
 
 /// Default separators
 const RCFILE: &str = ".rushrc";
@@ -14,12 +13,6 @@ const END: char = '!';
 struct ConfValues {
     enabled: bool,
     value: char,
-}
-
-impl ConfValues {
-    pub fn new() -> ConfValues {
-        ConfValues { enabled: true, value: ' ' }
-    }
 }
 
 pub struct Config {
@@ -40,7 +33,7 @@ impl Config {
         let config_file = fs::read_to_string(RCFILE);
         let mut config = match config_file {
             Err(_) => { Self::default() },
-            Ok(ref cf_string) => { parse_config_file(&cf_string[..]) }
+            Ok(ref cf_string) => { parse_config_file(cf_string) }
         };
         config.prompt = generate_prompt(&mut config);
         config

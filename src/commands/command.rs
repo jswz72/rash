@@ -2,22 +2,26 @@ use outputhandler::OutputHandler;
 use commands;
 use std::io;
 
+/// Standard output directed to stdout/err, file output for redirection
 pub enum Output<'a> {
     Standard,
     File(&'a str)
 }
 
+/// Command that calls build in program with optional flag
 pub struct BasicCommand<'a> {
     pub flags: Vec<&'a str>,
     pub output: (Output<'a>, Output<'a>)
 }
 
+/// Command that calls build in program with optional flag and file
 pub struct FileCommand<'a> {
     pub flags: Vec<&'a str>,
     pub files: Vec<&'a str>, 
     pub output: (Output<'a>, Output<'a>)
 }
 
+/// Command that calls program in path
 pub struct ProgramCommand<'a> {
     pub cmd: &'a str,
     pub flags: Vec<&'a str>,
@@ -25,7 +29,7 @@ pub struct ProgramCommand<'a> {
     pub output: (Output<'a>, Output<'a>)
 }
 
-///Holds all valid commands or none
+///Holds valid build-in, external, and piped commands... or Empty
 pub enum Command<'a> {
     Ls(FileCommand<'a>),
     Pwd(BasicCommand<'a>),
@@ -37,6 +41,7 @@ pub enum Command<'a> {
 }
 
 impl<'a> Command<'a> {
+    /// Parse input for appropriate command
     pub fn new(input: &'a str) -> Command {
         let output = get_output_type(input);
         let mut input = input.split(' ');
@@ -57,7 +62,8 @@ impl<'a> Command<'a> {
             Command::Empty
         }
     }
-    pub fn execute<'b>(&self, oh: &'b mut OutputHandler) -> Result<&'b mut OutputHandler, io::Error> {
+    /// Execute built-in shell commands
+    pub fn execute_builtin<'b>(&self, oh: &'b mut OutputHandler) -> Result<&'b mut OutputHandler, io::Error> {
         match self {
             Command::Ls(file_cmd) => commands::ls::execute(oh, file_cmd),
             Command::Cat(file_cmd) => commands::cat::execute(oh, file_cmd),

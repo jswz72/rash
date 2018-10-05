@@ -28,8 +28,7 @@ pub fn shell_loop(config: Config) {
         match io::stdin().read_line(&mut input) {
             Ok(_) => {
                 let mut input = input.trim();
-                let command: Command;
-                command = parse_input(input);
+                let command = parse_input(input);
                 if let Command::Exit = command { return }
                 execute_command(command, &mut output_handler);
             },
@@ -38,7 +37,7 @@ pub fn shell_loop(config: Config) {
     }
 }
 
-/// Parse given input for commands
+/// Parse given input for command(s)
 fn parse_input<'a>(input: &'a str) -> Command<'a> {
     if input.is_empty() { return Command::Empty }
     if input.contains("|") {
@@ -90,6 +89,7 @@ fn execute_program(command: &str, args: Vec<&str>) {
     }
 }
 
+/// Execute piped command(s), whether built-in or external programs
 fn execute_pipe(commands: Vec<Command>) -> Result<(), io::Error> {
     if commands.is_empty() { return Ok(())};
     let mut output = vec![];
@@ -118,7 +118,7 @@ fn execute_pipe(commands: Vec<Command>) -> Result<(), io::Error> {
                         let add_in = str::from_utf8(&output).unwrap().trim();
                         files.push(add_in);
                         let cmd = Command::Ls(FileCommand { files, flags, output: (commands::Output::Standard, commands::Output::Standard) });
-                        cmd.execute(&mut oh)?;
+                        cmd.execute_builtin(&mut oh)?;
                 },
                 _ => ()
             }
@@ -127,11 +127,13 @@ fn execute_pipe(commands: Vec<Command>) -> Result<(), io::Error> {
 
         }
     }
+    // todo integrate w/ output handler
     println!("{}", str::from_utf8(&stderr).unwrap());
     println!("{}", str::from_utf8(&output).unwrap());
     Ok(())
 }
 
+/// Execute command. Handles built-in, external, and piped commands
 fn execute_command(command: Command, oh: &mut OutputHandler) {
     match command {
         Command::Empty => (),
@@ -145,9 +147,10 @@ fn execute_command(command: Command, oh: &mut OutputHandler) {
             }
         },
         _ => {
-            if let Err(err) =  command.execute(oh) {
+            if let Err(err) =  command.execute_builtin(oh) {
             oh.add_stderr(&format!("{}", err));
             }
+            // todo outfit for redirection
             oh.display();
             oh.clear();
         },
